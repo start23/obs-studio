@@ -14,8 +14,8 @@
 
 OBSBasicStats::OBSBasicStats(QWidget *parent)
 	: QDialog             (parent),
-	  timer               (this),
-	  cpu_info            (os_cpu_usage_info_start())
+	  cpu_info            (os_cpu_usage_info_start()),
+	  timer               (this)
 {
 	QVBoxLayout *mainLayout = new QVBoxLayout();
 	QGridLayout *topLayout = new QGridLayout();
@@ -176,17 +176,22 @@ void OBSBasicStats::Update()
 		config_get_string(main->Config(), "SimpleOutput", "FilePath") :
 		config_get_string(main->Config(), "AdvOut", "RecFilePath");
 
-#define GIGS (1024 * 1024 * 1024)
+#define GBYTE (1024ULL * 1024ULL * 1024ULL)
+#define TBYTE (1024ULL * 1024ULL * 1024ULL * 1024ULL)
 	uint64_t space_bytes = os_get_free_disk_space(path);
+	QString abrv = QStringLiteral(" MB");
 	long double space;
-	bool use_gigs = (space_bytes > GIGS);
 
 	space = (long double)space_bytes / (1024.0l * 1024.0l);
-	if (use_gigs)
+	if (space_bytes > TBYTE) {
+		space /= 1024.0l * 1024.0l;
+		abrv = QStringLiteral(" TB");
+	} else if (space_bytes > GBYTE) {
 		space /= 1024.0l;
+		abrv = QStringLiteral(" GB");
+	}
 
-	str = QString::number(space, 'g', 2);
-	str += use_gigs ? QStringLiteral(" GB") : QStringLiteral(" MB");
+	str = QString::number(space, 'f', 1) + abrv;
 	hddSpace->setText(str);
 
 	/* ------------------------------------------- */
