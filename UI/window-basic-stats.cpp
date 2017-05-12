@@ -2,6 +2,7 @@
 
 #include "window-basic-stats.hpp"
 #include "window-basic-main.hpp"
+#include "platform.hpp"
 #include "obs-app.hpp"
 
 #include <QPushButton>
@@ -193,6 +194,13 @@ void OBSBasicStats::Update()
 
 	str = QString::number(space, 'f', 1) + abrv;
 	hddSpace->setText(str);
+
+#ifdef _WIN32
+	space = (long double)CurrentMemoryUsage() / (1024.0l * 1024.0l);
+
+	str = QString::number(space, 'f', 1) + QStringLiteral(" MB");
+	memUsage->setText(str);
+#endif
 
 	/* ------------------------------------------- */
 	/* recording stats                             */
