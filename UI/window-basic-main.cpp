@@ -43,6 +43,7 @@
 #include "window-basic-auto-config.hpp"
 #include "window-basic-source-select.hpp"
 #include "window-basic-main.hpp"
+#include "window-basic-stats.hpp"
 #include "window-basic-main-outputs.hpp"
 #include "window-basic-properties.hpp"
 #include "window-log-reply.hpp"
@@ -5485,4 +5486,14 @@ void OBSBasic::on_autoConfigure_triggered()
 	test.setModal(true);
 	test.show();
 	test.exec();
+}
+
+void OBSBasic::on_stats_triggered()
+{
+	stats.clear();
+	OBSBasicStats *statsDlg;
+	statsDlg = new OBSBasicStats(nullptr);
+	statsDlg->setModal(false);
+	statsDlg->show();
+	stats = statsDlg;
 }

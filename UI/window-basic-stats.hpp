@@ -1,8 +1,10 @@
 #pragma once
 
 #include <obs.hpp>
+#include <util/platform.h>
 #include <QPointer>
 #include <QDialog>
+#include <QTimer>
 #include <QLabel>
 #include <QList>
 
@@ -21,6 +23,10 @@ class OBSBasicStats : public QDialog {
 
 	QGridLayout *outputLayout = nullptr;
 
+	os_cpu_usage_info_t *cpu_info = nullptr;
+
+	QTimer timer;
+
 	struct OutputLabels {
 		QPointer<QLabel> name;
 		QPointer<QLabel> status;
@@ -33,7 +39,9 @@ class OBSBasicStats : public QDialog {
 	QList<OutputLabels> outputLabels;
 
 	void AddOutputLabels(QString name);
+	void Update();
 
 public:
 	OBSBasicStats(QWidget *parent = nullptr);
+	~OBSBasicStats();
 };

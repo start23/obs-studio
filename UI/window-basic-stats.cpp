@@ -1,5 +1,7 @@
-#include "window-basic-stats.hpp"
 #include "obs-frontend-api/obs-frontend-api.h"
+
+#include "window-basic-stats.hpp"
+#include "window-basic-main.hpp"
 #include "obs-app.hpp"
 
 #include <QPushButton>
@@ -11,9 +13,11 @@
 #include <string>
 
 OBSBasicStats::OBSBasicStats(QWidget *parent)
-	: QDialog(parent)
+	: QDialog             (parent),
+	  timer               (this),
+	  cpu_info            (os_cpu_usage_info_start())
 {
-	QHBoxLayout *mainLayout = new QHBoxLayout();
+	QVBoxLayout *mainLayout = new QVBoxLayout();
 	QGridLayout *topLayout = new QGridLayout();
 	outputLayout = new QGridLayout();
 
@@ -66,19 +70,19 @@ OBSBasicStats::OBSBasicStats(QWidget *parent)
 			0, 0);
 	outputLayout->addWidget(
 			new QLabel(QTStr("Basic.Stats.Status"), this),
-			0, 0);
+			0, 1);
 	outputLayout->addWidget(
 			new QLabel(QTStr("Basic.Stats.Disconnections"), this),
-			0, 0);
+			0, 2);
 	outputLayout->addWidget(
 			new QLabel(QTStr("Basic.Stats.DroppedFrames"), this),
-			0, 0);
+			0, 3);
 	outputLayout->addWidget(
 			new QLabel(QTStr("Basic.Stats.MegabytesSent"), this),
-			0, 0);
+			0, 4);
 	outputLayout->addWidget(
 			new QLabel(QTStr("Basic.Stats.Bitrate"), this),
-			0, 0);
+			0, 5);
 
 	/* --------------------------------------------- */
 
@@ -87,12 +91,16 @@ OBSBasicStats::OBSBasicStats(QWidget *parent)
 
 	/* --------------------------------------------- */
 
-	QScrollArea *scrollArea = new QScrollArea(this);
-
 	QVBoxLayout *outputContainerLayout = new QVBoxLayout();
 	outputContainerLayout->addLayout(outputLayout);
 	outputContainerLayout->addStretch();
-	scrollArea->widget()->setLayout(outputContainerLayout);
+
+	QWidget *widget = new QWidget(this);
+	widget->setLayout(outputContainerLayout);
+
+	QScrollArea *scrollArea = new QScrollArea(this);
+	scrollArea->setWidget(widget);
+	scrollArea->setWidgetResizable(true);
 
 	/* --------------------------------------------- */
 
@@ -112,6 +120,16 @@ OBSBasicStats::OBSBasicStats(QWidget *parent)
 	setSizeGripEnabled(true);
 	setWindowModality(Qt::NonModal);
 	setAttribute(Qt::WA_DeleteOnClose, true);
+
+	QObject::connect(&timer, &QTimer::timeout, this, &OBSBasicStats::Update);
+	timer.setInterval(2000);
+	timer.start();
+	Update();
+}
+
+OBSBasicStats::~OBSBasicStats()
+{
+	os_cpu_usage_info_destroy(cpu_info);
 }
 
 void OBSBasicStats::AddOutputLabels(QString name)
@@ -125,11 +143,53 @@ void OBSBasicStats::AddOutputLabels(QString name)
 	ol.bitrate = new QLabel(this);
 
 	int col = 0;
-	outputLayout->addWidget(ol.name, outputLabels.size(), col++);
-	outputLayout->addWidget(ol.status, outputLabels.size(), col++);
-	outputLayout->addWidget(ol.disconnections, outputLabels.size(), col++);
-	outputLayout->addWidget(ol.droppedFrames, outputLabels.size(), col++);
-	outputLayout->addWidget(ol.metabytesSent, outputLabels.size(), col++);
-	outputLayout->addWidget(ol.bitrate, outputLabels.size(), col++);
+	int row = outputLabels.size() + 1;
+	outputLayout->addWidget(ol.name, row, col++);
+	outputLayout->addWidget(ol.status, row, col++);
+	outputLayout->addWidget(ol.disconnections, row, col++);
+	outputLayout->addWidget(ol.droppedFrames, row, col++);
+	outputLayout->addWidget(ol.metabytesSent, row, col++);
+	outputLayout->addWidget(ol.bitrate, row, col++);
 	outputLabels.push_back(ol);
+}
+
+void OBSBasicStats::Update()
+{
+	OBSBasic *main = reinterpret_cast<OBSBasic*>(App()->GetMainWindow());
+
+	/* TODO: Un-hardcode */
+
+	OBSOutput strOutput = obs_frontend_get_streaming_output();
+	OBSOutput recOutput = obs_frontend_get_recording_output();
+	obs_output_release(strOutput);
+	obs_output_release(recOutput);
+
+	/* ------------------------------------------- */
+	/* general usage                               */
+
+	double usage = os_cpu_usage_info_query(cpu_info);
+	QString str = QString::number(usage, 'g', 2) + QStringLiteral("%");
+	cpuUsage->setText(str);
+
+	const char *mode = config_get_string(main->Config(), "Output", "Mode");
+	const char *path = strcmp(mode, "Advanced") ?
+		config_get_string(main->Config(), "SimpleOutput", "FilePath") :
+		config_get_string(main->Config(), "AdvOut", "RecFilePath");
+
+#define GIGS (1024 * 1024 * 1024)
+	uint64_t space_bytes = os_get_free_disk_space(path);
+	long double space;
+	bool use_gigs = (space_bytes > GIGS);
+
+	space = (long double)space_bytes / (1024.0l * 1024.0l);
+	if (use_gigs)
+		space /= 1024.0l;
+
+	str = QString::number(space, 'g', 2);
+	str += use_gigs ? QStringLiteral(" GB") : QStringLiteral(" MB");
+	hddSpace->setText(str);
+
+	/* ------------------------------------------- */
+	/* recording stats                             */
+
 }
