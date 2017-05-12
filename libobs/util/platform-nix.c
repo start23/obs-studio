@@ -686,5 +686,5 @@ uint64_t os_get_free_disk_space(const char *dir)
 	if (statvfs(dir, &info) != 0)
 		return 0;
 
-	return (uint64_t)info.f_bsize * (uint64_t)info.f_bfree;
+	return (uint64_t)info.f_frsize * (uint64_t)info.f_bavail;
 }
